@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatNumber, formatDate } from "@/lib/utils";
+import { formatNumber, formatDate, getIranTodayISO } from "@/lib/utils";
 
 interface Debtor {
   memberId: number;
@@ -71,6 +71,7 @@ export default function Debtors() {
 
   const totalRemaining = debtors.reduce((sum, d) => sum + parseFloat(d.totalRemaining || "0"), 0);
   const totalOverdue = debtors.reduce((sum, d) => sum + parseInt(String(d.overdueInstallments || "0")), 0);
+  const today = getIranTodayISO();
 
   return (
     <div className="space-y-4">
@@ -240,7 +241,7 @@ export default function Debtors() {
                     </thead>
                     <tbody>
                       {(memberDetails.installments as Installment[]).map((inst: Installment) => (
-                        <tr key={inst.id} className={inst.status === "pending" && inst.dueDate < new Date().toISOString().split("T")[0] ? "bg-red-50" : ""}>
+                        <tr key={inst.id} className={inst.status === "pending" && inst.dueDate < today ? "bg-red-50" : ""}>
                           <td className="font-mono">{inst.loanId}</td>
                           <td className="text-center">{inst.installmentNo}</td>
                           <td>{formatDate(inst.dueDate)}</td>
@@ -248,8 +249,8 @@ export default function Debtors() {
                           <td className={parseFloat(inst.paidAmount) > 0 ? "text-green-600" : "text-gray-400"}>{formatNumber(parseFloat(inst.paidAmount))}</td>
                           <td>{inst.paidDate ? formatDate(inst.paidDate) : "-"}</td>
                           <td>
-                            <span className={`badge ${inst.status === "paid" ? "badge-green" : inst.dueDate < new Date().toISOString().split("T")[0] ? "badge-red" : "badge-yellow"}`}>
-                              {inst.status === "paid" ? "پرداخت" : inst.dueDate < new Date().toISOString().split("T")[0] ? "معوق" : "در انتظار"}
+                            <span className={`badge ${inst.status === "paid" ? "badge-green" : inst.dueDate < today ? "badge-red" : "badge-yellow"}`}>
+                              {inst.status === "paid" ? "پرداخت" : inst.dueDate < today ? "معوق" : "در انتظار"}
                             </span>
                           </td>
                         </tr>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { members, loans, installments, fundTransactions, settings, users, smsLogs } from "@/db/schema";
 import { getSession } from "@/lib/auth";
+import { formatDateTime, getJalaliISODate } from "@/lib/utils";
 import { pool } from "@/db";
 
 export async function GET(req: NextRequest) {
@@ -34,6 +35,7 @@ export async function GET(req: NextRequest) {
     const backup = {
       version: "1.0",
       exportDate: new Date().toISOString(),
+      exportDateJalali: formatDateTime(new Date()),
       exportedBy: session.username,
       data: {
         members: allMembers,
@@ -48,7 +50,7 @@ export async function GET(req: NextRequest) {
     return new NextResponse(JSON.stringify(backup, null, 2), {
       headers: {
         "Content-Type": "application/json",
-        "Content-Disposition": `attachment; filename="backup-${new Date().toISOString().split("T")[0]}.json"`,
+        "Content-Disposition": `attachment; filename="backup-${getJalaliISODate()}.json"`,
       },
     });
   } catch (error) {

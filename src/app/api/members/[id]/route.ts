@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { members, loans, installments } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
+import { normalizeDateInput } from "@/lib/utils";
 
 export async function GET(
   req: NextRequest,
@@ -71,7 +72,7 @@ export async function PUT(
         address: body.address || null,
         city: body.city || null,
         postalCode: body.postalCode || null,
-        birthDate: body.birthDate || null,
+        birthDate: normalizeDateInput(body.birthDate),
         jobTitle: body.jobTitle || null,
         department: body.department || null,
         employeeId: body.employeeId || null,

@@ -3,7 +3,12 @@ import { db } from "@/db";
 import { loans, members, installments, fundTransactions } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
-import { calculateInstallments, addMonths } from "@/lib/utils";
+import {
+  calculateInstallments,
+  addJalaliMonthsISO,
+  getIranTodayISO,
+  normalizeDateInput,
+} from "@/lib/utils";
 
 export async function GET(
   req: NextRequest,
@@ -96,7 +101,7 @@ export async function PUT(
         .update(loans)
         .set({
           status: "approved",
-          approvalDate: new Date().toISOString().split("T")[0],
+          approvalDate: getIranTodayISO(),
           approvedBy: session.userId,
           updatedAt: new Date(),
         })
@@ -114,12 +119,10 @@ export async function PUT(
       }
 
       const disbursementDate =
-        body.disbursementDate || new Date().toISOString().split("T")[0];
+        normalizeDateInput(body.disbursementDate) || getIranTodayISO();
       const firstInstallmentDate =
-        body.firstInstallmentDate ||
-        addMonths(new Date(disbursementDate), 1)
-          .toISOString()
-          .split("T")[0];
+        normalizeDateInput(body.firstInstallmentDate) ||
+        addJalaliMonthsISO(disbursementDate, 1);
 
       const [updated] = await db
         .update(loans)
@@ -142,7 +145,7 @@ export async function PUT(
       let remainingPrincipal = principal;
 
       for (let i = 1; i <= installmentCount; i++) {
-        const dueDate = addMonths(new Date(firstInstallmentDate), i - 1);
+        const dueDate = addJalaliMonthsISO(firstInstallmentDate, i - 1);
         let interestAmt = 0;
         let principalAmt = installmentAmount;
 
@@ -157,7 +160,7 @@ export async function PUT(
           loanId,
           memberId: existingLoan.memberId,
           installmentNo: i,
-          dueDate: dueDate.toISOString().split("T")[0],
+          dueDate,
           amount: installmentAmount.toString(),
           principalAmount: Math.max(0, principalAmt).toFixed(2),
           interestAmount: Math.max(0, interestAmt).toFixed(2),

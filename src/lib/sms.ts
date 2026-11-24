@@ -1,6 +1,7 @@
 import { db } from "@/db";
 import { settings, smsLogs, members, installments } from "@/db/schema";
 import { eq, and, lte, or } from "drizzle-orm";
+import { addDaysISO, formatDate, getIranTodayISO } from "@/lib/utils";
 
 interface SmsSettings {
   apiUrl: string;
@@ -175,9 +176,7 @@ export async function sendInstallmentReminders(): Promise<{
     .limit(1);
 
   const daysBefore = parseInt(daysBeforeRow[0]?.value || "3");
-  const reminderDate = new Date();
-  reminderDate.setDate(reminderDate.getDate() + daysBefore);
-  const reminderDateStr = reminderDate.toISOString().split("T")[0];
+  const reminderDateStr = addDaysISO(getIranTodayISO(), daysBefore);
 
   const pendingInstallments = await db
     .select({
@@ -203,7 +202,7 @@ export async function sendInstallmentReminders(): Promise<{
       .replace("{name}", `${member.firstName} ${member.lastName}`)
       .replace("{installment_no}", String(installment.installmentNo))
       .replace("{amount}", new Intl.NumberFormat("fa-IR").format(parseFloat(installment.amount)))
-      .replace("{due_date}", new Date(installment.dueDate).toLocaleDateString("fa-IR"));
+      .replace("{due_date}", formatDate(installment.dueDate));
 
     const result = await sendSms(phone, message, member.id, installment.id);
     if (result.success) sent++;

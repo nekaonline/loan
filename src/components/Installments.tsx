@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatDate, formatNumber } from "@/lib/utils";
+import { formatDate, formatNumber, getIranTodayISO } from "@/lib/utils";
+import JalaliDatePicker from "@/components/JalaliDatePicker";
 
 interface Installment {
   id: number;
@@ -30,7 +31,7 @@ export default function Installments() {
   const [payModal, setPayModal] = useState<Installment | null>(null);
   const [payForm, setPayForm] = useState({
     amount: "",
-    paidDate: new Date().toISOString().split("T")[0],
+    paidDate: getIranTodayISO(),
     receiptNo: "",
     notes: "",
   });
@@ -103,7 +104,7 @@ export default function Installments() {
     }
   }
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = getIranTodayISO();
 
   return (
     <div className="space-y-4">
@@ -197,7 +198,7 @@ export default function Installments() {
                               <button
                                 onClick={() => {
                                   setPayModal(inst);
-                                  setPayForm({ amount: inst.amount, paidDate: new Date().toISOString().split("T")[0], receiptNo: "", notes: "" });
+                                  setPayForm({ amount: inst.amount, paidDate: getIranTodayISO(), receiptNo: "", notes: "" });
                                 }}
                                 className="btn btn-sm btn-success"
                               >
@@ -238,7 +239,11 @@ export default function Installments() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">تاریخ پرداخت</label>
-                <input type="date" required className="form-input" value={payForm.paidDate} onChange={e => setPayForm({ ...payForm, paidDate: e.target.value })} />
+                <JalaliDatePicker
+                  value={payForm.paidDate}
+                  required
+                  onChange={(paidDate) => setPayForm({ ...payForm, paidDate })}
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">شماره رسید</label>

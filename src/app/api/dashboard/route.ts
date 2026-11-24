@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { members, loans, installments, fundTransactions } from "@/db/schema";
-import { eq, and, lte, count, sum, sql } from "drizzle-orm";
+import { eq, and, lte, gte, count, sum, sql } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
+import { getIranMonthStartISO, getIranTodayISO } from "@/lib/utils";
 
 export async function GET(req: NextRequest) {
   try {
@@ -10,7 +11,7 @@ export async function GET(req: NextRequest) {
     if (!session)
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const today = new Date().toISOString().split("T")[0];
+    const today = getIranTodayISO();
 
     // Total members
     const [totalMembers] = await db
@@ -58,10 +59,8 @@ export async function GET(req: NextRequest) {
       fundBalance += parseFloat(t.total || "0");
     }
 
-    // Monthly collection (this month)
-    const firstDayOfMonth = new Date();
-    firstDayOfMonth.setDate(1);
-    const firstDayStr = firstDayOfMonth.toISOString().split("T")[0];
+    // Monthly collection (current Jalali month, Iran time)
+    const firstDayStr = getIranMonthStartISO();
 
     const [monthlyCollection] = await db
       .select({ total: sum(installments.paidAmount) })
@@ -69,7 +68,8 @@ export async function GET(req: NextRequest) {
       .where(
         and(
           eq(installments.status, "paid"),
-          sql`${installments.paidDate} >= ${firstDayStr}`
+          gte(installments.paidDate, firstDayStr),
+          lte(installments.paidDate, today)
         )
       );
 

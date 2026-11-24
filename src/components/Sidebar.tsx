@@ -34,7 +34,7 @@ export default function Sidebar({ currentPage, onNavigate, user, onLogout }: Sid
 
   return (
     <div
-      className={`${collapsed ? "w-16" : "w-64"} bg-[#1e3a5f] min-h-screen flex flex-col transition-all duration-300 flex-shrink-0`}
+      className={`${collapsed ? "w-16" : "w-64"} bg-[#1e3a5f] min-h-screen flex flex-col transition-all duration-300 flex-shrink-0 no-print`}
     >
       {/* Logo */}
       <div className="p-4 border-b border-white/10">

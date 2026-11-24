@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatNumber, formatCurrency } from "@/lib/utils";
+import {
+  formatNumber,
+  formatCurrency,
+  formatDate,
+  formatDateLong,
+  getIranTodayISO,
+} from "@/lib/utils";
 
 interface DashboardData {
   stats: {
@@ -91,14 +97,7 @@ export default function Dashboard() {
         <h1 className="text-2xl font-bold text-[#1e3a5f]">
           📊 داشبورد مدیریتی
         </h1>
-        <div className="text-sm text-gray-500">
-          {new Date().toLocaleDateString("fa-IR", {
-            weekday: "long",
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          })}
-        </div>
+        <div className="text-sm text-gray-500">{formatDateLong(getIranTodayISO())}</div>
       </div>
 
       {/* Stats Cards */}
@@ -223,7 +222,7 @@ export default function Dashboard() {
                       {formatNumber(Math.abs(parseFloat(tx.amount)))} ریال
                     </div>
                     <div className="text-xs text-gray-400">
-                      {new Date(tx.transactionDate).toLocaleDateString("fa-IR")}
+                      {formatDate(tx.transactionDate)}
                     </div>
                   </div>
                 </div>

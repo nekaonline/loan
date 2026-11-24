@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { installments, loans, fundTransactions } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
+import { getIranTodayISO, normalizeDateInput } from "@/lib/utils";
 
 export async function POST(
   req: NextRequest,
@@ -33,7 +34,7 @@ export async function POST(
       return NextResponse.json({ error: "این قسط قبلاً پرداخت شده" }, { status: 400 });
     }
 
-    const paidDate = body.paidDate || new Date().toISOString().split("T")[0];
+    const paidDate = normalizeDateInput(body.paidDate) || getIranTodayISO();
     const paidAmount = body.amount || installment.amount;
     const receiptNo = body.receiptNo || null;
 

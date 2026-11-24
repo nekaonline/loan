@@ -179,8 +179,44 @@ body {
   font-weight: 600;
 }
 
-/* Print */
+/* Print / PDF */
 @media print {
-  .no-print { display: none !important; }
-  .print-full { width: 100% !important; }
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
+  body {
+    background: #fff !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  .print-full {
+    width: 100% !important;
+  }
+
+  .print-card,
+  .recharts-wrapper,
+  tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+
+  /* Keep chart/table colors when saving as PDF from the browser print dialog. */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
 }

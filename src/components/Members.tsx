@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatDate } from "@/lib/utils";
+import { formatDate, getIranTodayISO } from "@/lib/utils";
+import JalaliDatePicker from "@/components/JalaliDatePicker";
 
 interface Member {
   id: number;
@@ -18,6 +19,7 @@ interface Member {
   jobTitle?: string;
   employeeId?: string;
   isActive: boolean;
+  birthDate?: string;
   joinDate: string;
   guarantorName?: string;
   guarantorPhone?: string;
@@ -47,13 +49,15 @@ interface MemberFormData {
   isActive: boolean;
 }
 
-const emptyForm: MemberFormData = {
-  firstName: "", lastName: "", nationalId: "", phone: "",
-  phone2: "", email: "", address: "", city: "", postalCode: "",
-  birthDate: "", jobTitle: "", department: "", employeeId: "",
-  guarantorName: "", guarantorPhone: "", guarantorNationalId: "",
-  joinDate: new Date().toISOString().split("T")[0], notes: "", isActive: true,
-};
+function emptyForm(): MemberFormData {
+  return {
+    firstName: "", lastName: "", nationalId: "", phone: "",
+    phone2: "", email: "", address: "", city: "", postalCode: "",
+    birthDate: "", jobTitle: "", department: "", employeeId: "",
+    guarantorName: "", guarantorPhone: "", guarantorNationalId: "",
+    joinDate: getIranTodayISO(), notes: "", isActive: true,
+  };
+}
 
 export default function Members() {
   const [members, setMembers] = useState<Member[]>([]);
@@ -90,7 +94,7 @@ export default function Members() {
 
   function openAdd() {
     setEditMember(null);
-    setForm(emptyForm);
+    setForm(emptyForm());
     setError("");
     setShowModal(true);
   }
@@ -101,10 +105,11 @@ export default function Members() {
       firstName: m.firstName, lastName: m.lastName, nationalId: m.nationalId,
       phone: m.phone, phone2: m.phone2 || "", email: m.email || "",
       address: m.address || "", city: m.city || "", postalCode: "",
-      birthDate: "", jobTitle: m.jobTitle || "", department: m.department || "",
+      jobTitle: m.jobTitle || "", department: m.department || "",
       employeeId: m.employeeId || "", guarantorName: m.guarantorName || "",
       guarantorPhone: m.guarantorPhone || "", guarantorNationalId: "",
-      joinDate: m.joinDate, notes: m.notes || "", isActive: m.isActive,
+      birthDate: m.birthDate || "", joinDate: m.joinDate,
+      notes: m.notes || "", isActive: m.isActive,
     });
     setError("");
     setShowModal(true);
@@ -298,8 +303,22 @@ export default function Members() {
                   <input className="form-input" value={form.employeeId} onChange={e => setForm({...form, employeeId: e.target.value})} />
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">تاریخ تولد</label>
+                  <JalaliDatePicker
+                    value={form.birthDate}
+                    onChange={(birthDate) => setForm({ ...form, birthDate })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">تاریخ عضویت</label>
-                  <input type="date" className="form-input" value={form.joinDate} onChange={e => setForm({...form, joinDate: e.target.value})} />
+                  <JalaliDatePicker
+                    value={form.joinDate}
+                    required
+                    onChange={(joinDate) => setForm({ ...form, joinDate })}
+                  />
                 </div>
               </div>
 
@@ -378,6 +397,7 @@ export default function Members() {
               <InfoRow label="بخش" value={showDetail.department || "-"} />
               <InfoRow label="سمت" value={showDetail.jobTitle || "-"} />
               <InfoRow label="کد پرسنلی" value={showDetail.employeeId || "-"} />
+              <InfoRow label="تاریخ تولد" value={showDetail.birthDate ? formatDate(showDetail.birthDate) : "-"} />
               <InfoRow label="تاریخ عضویت" value={formatDate(showDetail.joinDate)} />
               <InfoRow label="وضعیت" value={showDetail.isActive ? "فعال" : "غیرفعال"} />
               <InfoRow label="شهر" value={showDetail.city || "-"} />

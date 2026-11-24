@@ -3,7 +3,11 @@ import { db } from "@/db";
 import { members, loans } from "@/db/schema";
 import { eq, like, or, desc, count, sql } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
-import { generateMemberCode } from "@/lib/utils";
+import {
+  generateMemberCode,
+  getIranTodayISO,
+  normalizeDateInput,
+} from "@/lib/utils";
 
 export async function GET(req: NextRequest) {
   try {
@@ -119,7 +123,7 @@ export async function POST(req: NextRequest) {
         address: body.address || null,
         city: body.city || null,
         postalCode: body.postalCode || null,
-        birthDate: body.birthDate || null,
+        birthDate: normalizeDateInput(body.birthDate),
         jobTitle: body.jobTitle || null,
         department: body.department || null,
         employeeId: body.employeeId || null,
@@ -128,7 +132,7 @@ export async function POST(req: NextRequest) {
         guarantorNationalId: body.guarantorNationalId || null,
         isActive: true,
         notes: body.notes || null,
-        joinDate: body.joinDate || new Date().toISOString().split("T")[0],
+        joinDate: normalizeDateInput(body.joinDate) || getIranTodayISO(),
         createdBy: session.userId,
       })
       .returning();
