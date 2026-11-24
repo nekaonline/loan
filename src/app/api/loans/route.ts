@@ -6,7 +6,8 @@ import { getSession } from "@/lib/auth";
 import {
   generateLoanCode,
   calculateInstallments,
-  addMonths,
+  getIranTodayISO,
+  normalizeDateInput,
 } from "@/lib/utils";
 
 export async function GET(req: NextRequest) {
@@ -114,7 +115,7 @@ export async function POST(req: NextRequest) {
         remainingAmount: totalPayable.toString(),
         status: "pending",
         purpose: body.purpose || null,
-        requestDate: body.requestDate || new Date().toISOString().split("T")[0],
+        requestDate: normalizeDateInput(body.requestDate) || getIranTodayISO(),
         notes: body.notes || null,
         createdBy: session.userId,
       })

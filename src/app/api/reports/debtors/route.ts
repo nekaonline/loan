@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { loans, members, installments } from "@/db/schema";
 import { eq, and, lte, sum, count, sql } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
+import { getIranTodayISO } from "@/lib/utils";
 
 export async function GET(req: NextRequest) {
   try {
@@ -10,7 +11,7 @@ export async function GET(req: NextRequest) {
     if (!session)
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const today = new Date().toISOString().split("T")[0];
+    const today = getIranTodayISO();
 
     // Get all debtors with active loans
     const debtors = await db

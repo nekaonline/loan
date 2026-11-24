@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatDate, formatNumber, calculateInstallments } from "@/lib/utils";
+import {
+  formatDate,
+  formatNumber,
+  calculateInstallments,
+  getIranTodayISO,
+} from "@/lib/utils";
+import JalaliDatePicker from "@/components/JalaliDatePicker";
 
 interface Loan {
   id: number;
@@ -47,6 +53,18 @@ interface Installment {
   receiptNo?: string;
 }
 
+function emptyLoanForm() {
+  return {
+    memberId: "",
+    amount: "",
+    interestRate: "4",
+    installmentCount: "12",
+    purpose: "",
+    requestDate: getIranTodayISO(),
+    notes: "",
+  };
+}
+
 const statusLabels: Record<string, string> = {
   pending: "در انتظار",
   approved: "تأیید شده",
@@ -72,20 +90,12 @@ export default function Loans() {
   const [showDetail, setShowDetail] = useState<{ loan: Loan; installments: Installment[] } | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [memberSearch, setMemberSearch] = useState("");
-  const [form, setForm] = useState({
-    memberId: "",
-    amount: "",
-    interestRate: "4",
-    installmentCount: "12",
-    purpose: "",
-    requestDate: new Date().toISOString().split("T")[0],
-    notes: "",
-  });
+  const [form, setForm] = useState(emptyLoanForm());
   const [preview, setPreview] = useState({ installmentAmount: 0, totalPayable: 0, totalInterest: 0 });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [payModal, setPayModal] = useState<{ loan: Loan; installment: Installment } | null>(null);
-  const [payForm, setPayForm] = useState({ amount: "", paidDate: new Date().toISOString().split("T")[0], receiptNo: "", notes: "" });
+  const [payForm, setPayForm] = useState({ amount: "", paidDate: getIranTodayISO(), receiptNo: "", notes: "" });
 
   useEffect(() => { fetchLoans(); }, [page]);
 
@@ -194,7 +204,7 @@ export default function Loans() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-[#1e3a5f]">💰 مدیریت وام‌ها</h1>
-        <button onClick={() => { setError(""); setShowModal(true); }} className="btn btn-primary">
+        <button onClick={() => { setForm(emptyLoanForm()); setError(""); setShowModal(true); }} className="btn btn-primary">
           ➕ درخواست وام جدید
         </button>
       </div>
@@ -345,8 +355,12 @@ export default function Loans() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">تاریخ درخواست</label>
-                <input type="date" className="form-input" value={form.requestDate} onChange={e => setForm({...form, requestDate: e.target.value})} />
+                <label className="block text-sm font-medium text-gray-700 mb-1">تاریخ درخواست (هجری شمسی)</label>
+                <JalaliDatePicker
+                  value={form.requestDate}
+                  required
+                  onChange={(requestDate) => setForm({ ...form, requestDate })}
+                />
               </div>
 
               <div>
@@ -447,7 +461,7 @@ export default function Loans() {
                             <button
                               onClick={() => {
                                 setPayModal({ loan: showDetail.loan, installment: inst });
-                                setPayForm({ amount: inst.amount, paidDate: new Date().toISOString().split("T")[0], receiptNo: "", notes: "" });
+                                setPayForm({ amount: inst.amount, paidDate: getIranTodayISO(), receiptNo: "", notes: "" });
                               }}
                               className="btn btn-sm btn-success"
                             >
@@ -495,7 +509,11 @@ export default function Loans() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">تاریخ پرداخت</label>
-                <input type="date" required className="form-input" value={payForm.paidDate} onChange={e => setPayForm({...payForm, paidDate: e.target.value})} />
+                <JalaliDatePicker
+                  value={payForm.paidDate}
+                  required
+                  onChange={(paidDate) => setPayForm({ ...payForm, paidDate })}
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">شماره رسید</label>

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatNumber, formatDate } from "@/lib/utils";
+import { formatNumber, formatDate, getIranTodayISO } from "@/lib/utils";
+import JalaliDatePicker from "@/components/JalaliDatePicker";
 
 interface Transaction {
   id: number;
@@ -55,7 +56,7 @@ export default function Fund() {
     description: "",
     memberId: "",
     referenceNo: "",
-    transactionDate: new Date().toISOString().split("T")[0],
+    transactionDate: getIranTodayISO(),
   });
   const [saving, setSaving] = useState(false);
 
@@ -98,7 +99,7 @@ export default function Fund() {
       });
       if (res.ok) {
         setShowModal(false);
-        setForm({ type: "deposit", amount: "", description: "", memberId: "", referenceNo: "", transactionDate: new Date().toISOString().split("T")[0] });
+        setForm({ type: "deposit", amount: "", description: "", memberId: "", referenceNo: "", transactionDate: getIranTodayISO() });
         fetchFund();
       }
     } finally {
@@ -220,8 +221,12 @@ export default function Fund() {
                   <input className="form-input" value={form.referenceNo} onChange={e => setForm({ ...form, referenceNo: e.target.value })} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">تاریخ</label>
-                  <input type="date" className="form-input" value={form.transactionDate} onChange={e => setForm({ ...form, transactionDate: e.target.value })} />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">تاریخ (هجری شمسی)</label>
+                  <JalaliDatePicker
+                    value={form.transactionDate}
+                    required
+                    onChange={(transactionDate) => setForm({ ...form, transactionDate })}
+                  />
                 </div>
               </div>
               <div className="flex gap-3">

@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { fundTransactions, members } from "@/db/schema";
 import { eq, desc, sum, sql } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
+import { getIranTodayISO, normalizeDateInput } from "@/lib/utils";
 
 export async function GET(req: NextRequest) {
   try {
@@ -74,7 +75,7 @@ export async function POST(req: NextRequest) {
         memberId: body.memberId ? parseInt(body.memberId) : null,
         referenceNo: body.referenceNo || null,
         transactionDate:
-          body.transactionDate || new Date().toISOString().split("T")[0],
+          normalizeDateInput(body.transactionDate) || getIranTodayISO(),
         createdBy: session.userId,
       })
       .returning();

@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { installments, loans, members } from "@/db/schema";
 import { eq, and, lte, gte, desc, or, like } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
+import { getIranTodayISO } from "@/lib/utils";
 
 export async function GET(req: NextRequest) {
   try {
@@ -55,7 +56,7 @@ export async function GET(req: NextRequest) {
     }
 
     if (overdue) {
-      const today = new Date().toISOString().split("T")[0];
+      const today = getIranTodayISO();
       query = query.where(
         and(
           eq(installments.status, "pending"),

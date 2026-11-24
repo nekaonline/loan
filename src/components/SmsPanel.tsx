@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatDate } from "@/lib/utils";
+import { formatDateTime } from "@/lib/utils";
 
 interface SmsLog {
   id: number;
@@ -226,7 +226,7 @@ export default function SmsPanel() {
                       </span>
                     </td>
                     <td className="text-xs text-gray-500">{log.responseMessage?.slice(0, 50) || "-"}</td>
-                    <td className="text-xs">{formatDate(log.createdAt)}</td>
+                    <td className="text-xs">{formatDateTime(log.createdAt)}</td>
                   </tr>
                 ))
               )}

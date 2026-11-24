@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { getJalaliISODate } from "@/lib/utils";
 
 export default function Backup() {
   const [restoring, setRestoring] = useState(false);
@@ -14,7 +15,7 @@ export default function Backup() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `backup-${new Date().toISOString().split("T")[0]}.json`;
+    a.download = `backup-${getJalaliISODate()}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

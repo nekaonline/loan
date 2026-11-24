@@ -194,7 +194,7 @@ export default function Home() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Bar */}
-        <header className="bg-white shadow-sm px-6 py-3 flex items-center justify-between flex-shrink-0">
+        <header className="bg-white shadow-sm px-6 py-3 flex items-center justify-between flex-shrink-0 no-print">
           <div className="flex items-center gap-3">
             <div className="text-[#1e3a5f] font-bold text-sm">
               🏥 بیمارستان بوعلی سینا ساری

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatDate } from "@/lib/utils";
+import { formatDateTime } from "@/lib/utils";
 
 interface User {
   id: number;
@@ -156,7 +156,7 @@ export default function Users() {
                   </td>
                   <td>{u.phone || "-"}</td>
                   <td className="text-xs">{u.email || "-"}</td>
-                  <td className="text-xs">{u.lastLogin ? formatDate(u.lastLogin) : "هرگز"}</td>
+                  <td className="text-xs">{u.lastLogin ? formatDateTime(u.lastLogin) : "هرگز"}</td>
                   <td>
                     <span className={`badge ${u.isActive ? "badge-green" : "badge-red"}`}>
                       {u.isActive ? "فعال" : "غیرفعال"}
