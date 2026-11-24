@@ -8,6 +8,7 @@ import {
   getIranTodayISO,
 } from "@/lib/utils";
 import JalaliDatePicker from "@/components/JalaliDatePicker";
+import ReceiptViewer from "@/components/ReceiptViewer";
 
 interface Loan {
   id: number;
@@ -96,6 +97,11 @@ export default function Loans() {
   const [error, setError] = useState("");
   const [payModal, setPayModal] = useState<{ loan: Loan; installment: Installment } | null>(null);
   const [payForm, setPayForm] = useState({ amount: "", paidDate: getIranTodayISO(), receiptNo: "", notes: "" });
+  const [attachments, setAttachments] = useState<Array<{ id: number; fileName: string; category: string; fileSize: number; createdAt: string }>>([]);
+  const [guarantees, setGuarantees] = useState<Array<{ id: number; guarantorId: number; firstName: string; lastName: string; nationalId: string; phone: string }>>([]);
+  const [guarantorOptions, setGuarantorOptions] = useState<Array<{ id: number; firstName: string; lastName: string; nationalId: string }>>([]);
+  const [newGuarantorId, setNewGuarantorId] = useState("");
+  const [receiptCode, setReceiptCode] = useState<string | null>(null);
 
   useEffect(() => { fetchLoans(); }, [page]);
 
@@ -138,6 +144,53 @@ export default function Loans() {
     if (res.ok) {
       const data = await res.json();
       setShowDetail(data);
+    }
+    await Promise.all([
+      loadLoanExtras(loan.id),
+      loadGuarantorOptions(),
+    ]);
+  }
+
+  async function loadLoanExtras(loanId: number) {
+    const [filesRes, guaranteesRes] = await Promise.all([
+      fetch(`/api/attachments?loanId=${loanId}`),
+      fetch(`/api/loans/${loanId}/guarantors`),
+    ]);
+    if (filesRes.ok) setAttachments((await filesRes.json()).attachments);
+    if (guaranteesRes.ok) setGuarantees((await guaranteesRes.json()).guarantors);
+  }
+
+  async function loadGuarantorOptions() {
+    const res = await fetch("/api/guarantors");
+    if (res.ok) setGuarantorOptions((await res.json()).guarantors);
+  }
+
+  async function handleAttachmentUpload(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!showDetail) return;
+    const formEl = e.currentTarget;
+    const data = new FormData(formEl);
+    data.set("loanId", String(showDetail.loan.id));
+    const res = await fetch("/api/attachments", { method: "POST", body: data });
+    if (res.ok) {
+      formEl.reset();
+      await loadLoanExtras(showDetail.loan.id);
+    } else {
+      const result = await res.json();
+      alert(result.error || "خطا در آپلود فایل");
+    }
+  }
+
+  async function handleAddGuarantee() {
+    if (!showDetail || !newGuarantorId) return;
+    const res = await fetch(`/api/loans/${showDetail.loan.id}/guarantors`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ guarantorId: Number(newGuarantorId) }),
+    });
+    if (res.ok) {
+      setNewGuarantorId("");
+      await loadLoanExtras(showDetail.loan.id);
     }
   }
 
@@ -422,6 +475,79 @@ export default function Loans() {
               </div>
             </div>
 
+            {/* Guarantors */}
+            <div className="bg-gray-50 rounded-lg p-4 mb-6">
+              <h3 className="font-bold text-gray-800 mb-3">🛡️ ضامن‌های وام</h3>
+              {guarantees.length === 0 ? (
+                <p className="text-xs text-gray-400 mb-3">ضامنی برای این وام ثبت نشده است</p>
+              ) : (
+                <div className="space-y-2 mb-3">
+                  {guarantees.map((g) => (
+                    <div key={g.id} className="flex justify-between text-xs bg-white rounded-lg p-2">
+                      <span>{g.firstName} {g.lastName} ({g.nationalId}) - {g.phone}</span>
+                      <button
+                        onClick={async () => {
+                          const res = await fetch(`/api/loans/${showDetail.loan.id}/guarantors?id=${g.id}`, { method: "DELETE" });
+                          if (res.ok) await loadLoanExtras(showDetail.loan.id);
+                        }}
+                        className="text-red-600 hover:underline"
+                      >
+                        حذف
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <select className="form-input text-xs" value={newGuarantorId} onChange={(e) => setNewGuarantorId(e.target.value)}>
+                  <option value="">انتخاب ضامن ثبت‌شده...</option>
+                  {guarantorOptions.map((g) => (
+                    <option key={g.id} value={g.id}>{g.firstName} {g.lastName} - {g.nationalId}</option>
+                  ))}
+                </select>
+                <button type="button" onClick={() => void handleAddGuarantee()} className="btn btn-sm btn-primary whitespace-nowrap" disabled={!newGuarantorId}>
+                  ➕ افزودن
+                </button>
+              </div>
+            </div>
+
+            {/* Attachments */}
+            <div className="bg-gray-50 rounded-lg p-4 mb-6">
+              <h3 className="font-bold text-gray-800 mb-3">📎 مدارک و پیوست‌ها</h3>
+              {attachments.length === 0 ? (
+                <p className="text-xs text-gray-400 mb-3">مدرکی آپلود نشده است</p>
+              ) : (
+                <div className="space-y-2 mb-3">
+                  {attachments.map((file) => (
+                    <div key={file.id} className="flex items-center justify-between bg-white rounded-lg p-2 text-xs">
+                      <a href={`/api/attachments/${file.id}`} className="text-blue-700 hover:underline">
+                        {file.fileName} ({Math.ceil(file.fileSize / 1024)} KB)
+                      </a>
+                      <button
+                        onClick={async () => {
+                          const res = await fetch(`/api/attachments/${file.id}`, { method: "DELETE" });
+                          if (res.ok) await loadLoanExtras(showDetail.loan.id);
+                        }}
+                        className="text-red-600 hover:underline"
+                      >
+                        حذف
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <form onSubmit={handleAttachmentUpload} className="flex flex-wrap gap-2 items-center">
+                <input type="file" name="file" accept=".pdf,image/*" required className="text-xs" />
+                <select name="category" className="form-input text-xs w-auto" defaultValue="other">
+                  <option value="member">مدارک عضو</option>
+                  <option value="guarantor">مدارک ضامن</option>
+                  <option value="medical">مدارک پزشکی</option>
+                  <option value="other">سایر</option>
+                </select>
+                <button className="btn btn-sm btn-primary">⬆️ آپلود</button>
+              </form>
+            </div>
+
             {/* Installments Table */}
             <div>
               <h3 className="font-bold text-gray-800 mb-3">جدول اقساط</h3>
@@ -455,6 +581,14 @@ export default function Loans() {
                           }`}>
                             {inst.status === "paid" ? "پرداخت شده" : inst.status === "overdue" ? "معوق" : "در انتظار"}
                           </span>
+                          {inst.status === "paid" && (inst as Installment & { receiptNo?: string }).receiptNo && (
+                            <button
+                              onClick={() => setReceiptCode((inst as Installment & { receiptNo?: string }).receiptNo || null)}
+                              className="btn btn-sm btn-secondary mr-1"
+                            >
+                              🧾 رسید
+                            </button>
+                          )}
                         </td>
                         <td>
                           {inst.status !== "paid" && showDetail.loan.status === "active" && (
@@ -485,6 +619,18 @@ export default function Loans() {
             {showDetail.loan.status === "approved" && (
               <button onClick={() => handleAction(showDetail.loan.id, "disburse")} className="btn btn-primary mt-4">💸 پرداخت وام (فعال‌سازی)</button>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Receipt Modal */}
+      {receiptCode && (
+        <div className="modal-overlay" onClick={() => setReceiptCode(null)}>
+          <div className="modal-content" style={{ maxWidth: 650 }} onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-end mb-2">
+              <button onClick={() => setReceiptCode(null)} className="text-2xl text-gray-400">✕</button>
+            </div>
+            <ReceiptViewer code={receiptCode} embedded />
           </div>
         </div>
       )}

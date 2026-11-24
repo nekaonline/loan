@@ -16,6 +16,8 @@ const menuItems = [
   { id: "installments", label: "اقساط و پرداخت", icon: "📋" },
   { id: "debtors", label: "لیست بدهکاران", icon: "⚠️" },
   { id: "fund", label: "موجودی صندوق", icon: "🏦" },
+  { id: "guarantors", label: "مدیریت ضامن‌ها", icon: "🛡️" },
+  { id: "inquiry", label: "استعلام عضو", icon: "🔎" },
   { id: "reports", label: "گزارشات", icon: "📊" },
   { id: "sms", label: "پیامک", icon: "📱" },
   { id: "users", label: "مدیریت کاربران", icon: "👤" },

@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { installments, loans, fundTransactions } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
-import { getIranTodayISO, normalizeDateInput } from "@/lib/utils";
+import { getIranTodayISO, getJalaliISODate, normalizeDateInput } from "@/lib/utils";
 
 export async function POST(
   req: NextRequest,
@@ -35,8 +35,13 @@ export async function POST(
     }
 
     const paidDate = normalizeDateInput(body.paidDate) || getIranTodayISO();
-    const paidAmount = body.amount || installment.amount;
-    const receiptNo = body.receiptNo || null;
+    const paidAmount = Number(body.amount || installment.amount);
+    if (!Number.isFinite(paidAmount) || paidAmount <= 0) {
+      return NextResponse.json({ error: "مبلغ پرداختی معتبر نیست" }, { status: 400 });
+    }
+    const receiptNo =
+      String(body.receiptNo || "").trim() ||
+      `RC-${getJalaliISODate().replace(/-/g, "")}-${installmentId}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 
     // Update installment
     const [updatedInstallment] = await db
@@ -61,7 +66,7 @@ export async function POST(
       .limit(1);
 
     if (loan) {
-      const newPaid = parseFloat(loan.paidAmount) + parseFloat(paidAmount.toString());
+      const newPaid = parseFloat(loan.paidAmount) + paidAmount;
       const newRemaining = parseFloat(loan.totalPayable) - newPaid;
       const allInstallments = await db
         .select()

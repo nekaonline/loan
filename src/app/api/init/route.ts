@@ -2,30 +2,30 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { users, settings } from "@/db/schema";
 import { hashPassword } from "@/lib/auth";
-import { eq, count } from "drizzle-orm";
+import { ensureSchema } from "@/lib/schema-setup";
+import { count } from "drizzle-orm";
 
 export async function POST() {
   try {
-    // Check if already initialized
-    const [existing] = await db
-      .select({ count: count() })
-      .from(users);
+    // Safe for every load: creates tables added in later versions.
+    await ensureSchema();
 
-    if (existing.count > 0) {
-      return NextResponse.json({ message: "Already initialized" });
+    // Check if already initialized
+    const [existing] = await db.select({ count: count() }).from(users);
+
+    if (existing.count === 0) {
+      const hashedPassword = await hashPassword("admin123");
+      await db.insert(users).values({
+        username: "admin",
+        password: hashedPassword,
+        fullName: "مدیر سیستم",
+        role: "admin",
+        isActive: true,
+      });
     }
 
-    // Create admin user
-    const hashedPassword = await hashPassword("admin123");
-    await db.insert(users).values({
-      username: "admin",
-      password: hashedPassword,
-      fullName: "مدیر سیستم",
-      role: "admin",
-      isActive: true,
-    });
-
-    // Create default settings
+    // Default settings are inserted idempotently on every load so upgrades
+    // receive newly added keys as well.
     const defaultSettings = [
       { key: "fund_name", value: "صندوق قرض‌الحسنه بیمارستان بوعلی سینا ساری", description: "نام صندوق" },
       { key: "fund_manager", value: "مدیریت صندوق", description: "نام مدیر" },
@@ -39,6 +39,11 @@ export async function POST() {
       { key: "sms_reminder_days", value: "3", description: "روزهای قبل از سررسید برای ارسال یادآور" },
       { key: "sms_installment_template", value: "عضو گرامی {name}، قسط شماره {installment_no} به مبلغ {amount} ریال در تاریخ {due_date} سررسید می‌شود. صندوق قرض‌الحسنه بوعلی سینا", description: "قالب پیامک یادآور قسط" },
       { key: "sms_auto_reminder", value: "false", description: "ارسال خودکار یادآور" },
+      { key: "max_loan_amount_manager", value: "50000000", description: "حداکثر مبلغ وام برای کارشناس (ریال)" },
+      { key: "max_active_loans_per_member", value: "1", description: "حداکثر تعداد وام فعال هر عضو" },
+      { key: "backup_auto_enabled", value: "false", description: "تهیه خودکار نسخه پشتیبان" },
+      { key: "backup_interval_hours", value: "24", description: "فاصله زمانی پشتیبان گیری خودکار (ساعت)" },
+      { key: "backup_retention_count", value: "10", description: "تعداد نسخه های پشتیبان نگهداری شده" },
       { key: "hospital_name", value: "بیمارستان بوعلی سینا ساری", description: "نام بیمارستان" },
       { key: "hospital_address", value: "ساری، خیابان بوعلی سینا", description: "آدرس بیمارستان" },
       { key: "hospital_phone", value: "", description: "تلفن بیمارستان" },

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { formatDate, formatNumber, getIranTodayISO } from "@/lib/utils";
 import JalaliDatePicker from "@/components/JalaliDatePicker";
+import ReceiptViewer from "@/components/ReceiptViewer";
 
 interface Installment {
   id: number;
@@ -38,6 +39,7 @@ export default function Installments() {
   const [saving, setSaving] = useState(false);
   const [smsModal, setSmsModal] = useState<Installment | null>(null);
   const [smsMessage, setSmsMessage] = useState("");
+  const [receiptCode, setReceiptCode] = useState<string | null>(null);
 
   useEffect(() => { fetchInstallments(); }, [filter, overdue]);
 
@@ -190,7 +192,14 @@ export default function Installments() {
                           {inst.status === "paid" ? "✅ پرداخت" : isOverdue ? "⚠️ معوق" : "⏳ در انتظار"}
                         </span>
                       </td>
-                      <td className="text-xs">{inst.paidDate ? formatDate(inst.paidDate) : "-"}</td>
+                      <td className="text-xs">
+                        {inst.paidDate ? formatDate(inst.paidDate) : "-"}
+                        {inst.status === "paid" && inst.receiptNo && (
+                          <button onClick={() => setReceiptCode(inst.receiptNo || null)} className="btn btn-sm btn-secondary mr-1">
+                            🧾 رسید
+                          </button>
+                        )}
+                      </td>
                       <td>
                         <div className="flex gap-1">
                           {inst.status !== "paid" && (
@@ -285,6 +294,16 @@ export default function Installments() {
                 <button type="button" onClick={() => setSmsModal(null)} className="btn btn-secondary flex-1">انصراف</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {receiptCode && (
+        <div className="modal-overlay" onClick={() => setReceiptCode(null)}>
+          <div className="modal-content" style={{ maxWidth: 650 }} onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-end mb-2">
+              <button onClick={() => setReceiptCode(null)} className="text-2xl text-gray-400">✕</button>
+            </div>
+            <ReceiptViewer code={receiptCode} embedded />
           </div>
         </div>
       )}
