@@ -8,7 +8,9 @@ import {
   addJalaliMonthsISO,
   getIranTodayISO,
   normalizeDateInput,
+  formatNumber,
 } from "@/lib/utils";
+import { getLoanPolicy, maxAmountForRole } from "@/lib/policy";
 
 export async function GET(
   req: NextRequest,
@@ -202,6 +204,20 @@ export async function PUT(
     const principal = body.amount
       ? parseFloat(body.amount)
       : parseFloat(existingLoan.amount);
+
+    if (body.amount) {
+      const policy = await getLoanPolicy();
+      const cap = maxAmountForRole(policy, session.role);
+      if (!Number.isFinite(principal) || principal <= 0 || principal > cap) {
+        return NextResponse.json(
+          {
+            error: `مبلغ وام باید بین 0 و ${formatNumber(cap)} ریال باشد`,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     const interestRate = body.interestRate !== undefined
       ? parseFloat(body.interestRate)
       : parseFloat(existingLoan.interestRate);

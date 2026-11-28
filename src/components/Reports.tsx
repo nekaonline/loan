@@ -24,6 +24,7 @@ import {
   getJalaliISODate,
 } from "@/lib/utils";
 import { exportToExcel } from "@/lib/export";
+import JalaliDatePicker from "@/components/JalaliDatePicker";
 
 type ReportTab = "summary" | "debtors" | "recipients" | "fund";
 
@@ -86,6 +87,7 @@ interface FundTransaction {
 
 interface ReportData {
   generatedAt: string;
+  filters?: { from: string | null; to: string | null };
   stats: {
     totalMembers: number;
     activeLoans: number;
@@ -147,12 +149,19 @@ export default function Reports() {
   const [reportType, setReportType] = useState<ReportTab>("summary");
   const [search, setSearch] = useState("");
   const [exporting, setExporting] = useState(false);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [templates, setTemplates] = useState<Array<{ id: number; name: string; reportType: string; filters: string }>>([]);
+  const [templateName, setTemplateName] = useState("");
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/reports/management");
+      const params = new URLSearchParams();
+      if (fromDate) params.set("from", fromDate);
+      if (toDate) params.set("to", toDate);
+      const res = await fetch(`/api/reports/management?${params.toString()}`);
       if (!res.ok) throw new Error("خطا در بارگذاری گزارش");
       setData(await res.json());
     } catch (err) {
@@ -160,13 +169,23 @@ export default function Reports() {
     } finally {
       setLoading(false);
     }
+  }, [fromDate, toDate]);
+
+  const loadTemplates = useCallback(async () => {
+    try {
+      const res = await fetch("/api/reports/templates");
+      if (res.ok) setTemplates((await res.json()).templates);
+    } catch {
+      // Templates are optional.
+    }
   }, []);
 
   useEffect(() => {
     // Loading the report once on mount is intentional.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchData();
-  }, [fetchData]);
+    void loadTemplates();
+  }, [fetchData, loadTemplates]);
 
   const normalizedSearch = search.trim().toLowerCase();
   const filteredDebtors = useMemo(() => {
@@ -209,6 +228,28 @@ export default function Reports() {
     name: transactionLabels[item.type] || item.type,
     amount: Math.abs(item.total),
   }));
+
+  async function saveTemplate() {
+    if (!templateName.trim()) return;
+    const res = await fetch("/api/reports/templates", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: templateName,
+        reportType,
+        filters: { from: fromDate, to: toDate },
+      }),
+    });
+    if (res.ok) {
+      setTemplateName("");
+      void loadTemplates();
+    }
+  }
+
+  async function deleteTemplate(id: number) {
+    const res = await fetch(`/api/reports/templates?id=${id}`, { method: "DELETE" });
+    if (res.ok) void loadTemplates();
+  }
 
   async function handleExport() {
     if (!data) return;
@@ -378,6 +419,9 @@ export default function Reports() {
           <h1 className="text-2xl font-bold text-[#1e3a5f]">📊 گزارشات مدیریتی</h1>
           <p className="text-xs text-gray-500 mt-1">
             تاریخ گزارش: {todayJalali}
+            {data.filters?.from || data.filters?.to
+              ? ` | بازه: ${data.filters.from ? formatDate(data.filters.from) : "ابتدا"} تا ${data.filters.to ? formatDate(data.filters.to) : "امروز"}`
+              : ""}
           </p>
         </div>
         <div className="flex gap-2 no-print">
@@ -408,6 +452,68 @@ export default function Reports() {
             {tab.label}
           </button>
         ))}
+        <div className="w-40">
+          <JalaliDatePicker
+            value={fromDate}
+            placeholder="از تاریخ"
+            onChange={(value) => setFromDate(value)}
+          />
+        </div>
+        <div className="w-40">
+          <JalaliDatePicker
+            value={toDate}
+            placeholder="تا تاریخ"
+            onChange={(value) => setToDate(value)}
+          />
+        </div>
+        {(fromDate || toDate) && (
+          <button
+            onClick={() => { setFromDate(""); setToDate(""); }}
+            className="btn btn-sm btn-secondary"
+          >
+            حذف فیلتر
+          </button>
+        )}
+        <select
+          className="form-input w-auto text-xs"
+          defaultValue=""
+          onChange={(e) => {
+            const template = templates.find((t) => String(t.id) === e.target.value);
+            if (!template) return;
+            const filters = JSON.parse(template.filters || "{}") as { from?: string; to?: string };
+            setReportType(template.reportType as ReportTab);
+            setFromDate(filters.from || "");
+            setToDate(filters.to || "");
+            e.target.value = "";
+          }}
+        >
+          <option value="">الگوها...</option>
+          {templates.map((template) => (
+            <option key={template.id} value={template.id}>{template.name}</option>
+          ))}
+        </select>
+        <input
+          className="form-input w-auto text-xs"
+          placeholder="نام الگو"
+          value={templateName}
+          onChange={(e) => setTemplateName(e.target.value)}
+        />
+        <button onClick={() => void saveTemplate()} className="btn btn-sm btn-secondary" disabled={!templateName.trim()}>
+          ذخیره الگو
+        </button>
+        {templates.length > 0 && (
+          <button
+            onClick={() => {
+              const last = templates[0];
+              void deleteTemplate(last.id);
+            }}
+            className="btn btn-sm btn-secondary"
+            title="حذف آخرین الگو"
+          >
+            🗑️
+          </button>
+        )}
+
         {(reportType === "debtors" || reportType === "recipients") && (
           <input
             type="text"

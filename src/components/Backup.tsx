@@ -1,12 +1,42 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { getJalaliISODate } from "@/lib/utils";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { formatDateTime, getJalaliISODate } from "@/lib/utils";
+
+interface SavedBackup {
+  id: number;
+  filename: string;
+  size: number;
+  checksum: string | null;
+  source: string;
+  createdAt: string;
+}
 
 export default function Backup() {
   const [restoring, setRestoring] = useState(false);
-  const [restoreResult, setRestoreResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [backups, setBackups] = useState<SavedBackup[]>([]);
+  const [autoEnabled, setAutoEnabled] = useState(false);
+  const [intervalHours, setIntervalHours] = useState("24");
+  const [retention, setRetention] = useState("10");
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const loadBackups = useCallback(async () => {
+    const res = await fetch("/api/backups");
+    if (res.ok) setBackups((await res.json()).backups);
+    const settingsRes = await fetch("/api/settings");
+    if (settingsRes.ok) {
+      const values = (await settingsRes.json()).settings;
+      setAutoEnabled(values.backup_auto_enabled === "true");
+      setIntervalHours(values.backup_interval_hours || "24");
+      setRetention(values.backup_retention_count || "10");
+    }
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadBackups();
+  }, [loadBackups]);
 
   async function handleDownload() {
     const res = await fetch("/api/backup");
@@ -22,114 +52,219 @@ export default function Backup() {
     URL.revokeObjectURL(url);
   }
 
-  async function handleRestore(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  async function handleSaveSnapshot() {
+    setResult(null);
+    const res = await fetch("/api/backups", { method: "POST" });
+    const data = await res.json();
+    setResult({
+      success: res.ok,
+      message: res.ok ? "نسخه پشتیبان در سرور ذخیره شد" : data.error || "خطا",
+    });
+    if (res.ok) void loadBackups();
+  }
 
-    if (!confirm("⚠️ بازیابی نسخه پشتیبان تمام داده‌های فعلی را جایگزین می‌کند. آیا مطمئن هستید؟")) {
-      if (fileRef.current) fileRef.current.value = "";
-      return;
-    }
-
+  async function handleRestoreFile(file: File, dryRun: boolean) {
     setRestoring(true);
-    setRestoreResult(null);
+    setResult(null);
     try {
-      const text = await file.text();
-      const data = JSON.parse(text);
-
+      const payload = JSON.parse(await file.text());
       const res = await fetch("/api/backup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...payload, dryRun }),
       });
-      const result = await res.json();
-      setRestoreResult({ success: res.ok, message: result.message || result.error });
+      const data = await res.json();
+      setResult({
+        success: res.ok,
+        message: dryRun
+          ? res.ok
+            ? `بررسی موفق: ${Object.values(data.counts || {}).reduce((a: number, b) => a + Number(b), 0)} رکورد`
+            : data.error || "فایل معتبر نیست"
+          : data.message || data.error,
+      });
     } catch {
-      setRestoreResult({ success: false, message: "خطا در خواندن فایل پشتیبان" });
+      setResult({ success: false, message: "خطا در خواندن فایل پشتیبان" });
     } finally {
       setRestoring(false);
       if (fileRef.current) fileRef.current.value = "";
     }
   }
 
+  async function handleSavedBackup(id: number, dryRun: boolean) {
+    setResult(null);
+    if (!dryRun && !confirm("⚠️ بازیابی داده‌های فعلی را جایگزین می کند. ادامه؟")) return;
+    const res = await fetch(`/api/backups/${id}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dryRun }),
+    });
+    const data = await res.json();
+    setResult({
+      success: res.ok,
+      message: dryRun
+        ? res.ok
+          ? "بررسی موفق: ساختار پشتیبان معتبر است"
+          : data.error || "پشتیبان معتبر نیست"
+        : data.message || data.error,
+    });
+  }
+
+  async function saveSettings() {
+    setResult(null);
+    const res = await fetch("/api/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        settings: {
+          backup_auto_enabled: autoEnabled ? "true" : "false",
+          backup_interval_hours: intervalHours,
+          backup_retention_count: retention,
+        },
+      }),
+    });
+    setResult({
+      success: res.ok,
+      message: res.ok ? "تنظیمات پشتیبان ذخیره شد" : "خطا در ذخیره تنظیمات",
+    });
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-[#1e3a5f]">💾 پشتیبان‌گیری و بازیابی</h1>
+        <h1 className="text-2xl font-bold text-[#1e3a5f]">💾 پشتیبان\u200cگیری و بازیابی</h1>
       </div>
 
-      {/* Backup Section */}
+      {result && (
+        <div className={`rounded-xl p-4 text-sm ${result.success ? "bg-green-50 text-green-800 border border-green-200" : "bg-red-50 text-red-800 border border-red-200"}`}>
+          {result.success ? "✅" : "❌"} {result.message}
+          {result.success && !result.message.includes("بررسی") && !result.message.includes("ذخیره") && (
+            <button onClick={() => window.location.reload()} className="btn btn-sm btn-success mr-3">
+              بارگذاری مجدد
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="bg-white rounded-xl shadow-sm p-6">
         <div className="flex items-start gap-4">
           <div className="text-4xl">📦</div>
           <div className="flex-1">
             <h2 className="text-xl font-bold text-[#1e3a5f] mb-2">تهیه نسخه پشتیبان</h2>
-            <p className="text-gray-600 mb-4 text-sm leading-relaxed">
-              با کلیک بر روی دکمه زیر، تمام اطلاعات سیستم شامل اعضا، وام‌ها، اقساط، تراکنش‌ها و تنظیمات
-              در قالب فایل JSON دانلود می‌شود. این فایل را در محل امنی نگهداری کنید.
+            <p className="text-gray-600 mb-4 text-sm">
+              می‌توانید پشتیبان را دانلود کنید یا به صورت نسخه\u200cبندی\u200cشده در سرور ذخیره نمایید.
             </p>
-            <button onClick={handleDownload} className="btn btn-primary">
-              📥 دانلود نسخه پشتیبان
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => void handleDownload()} className="btn btn-primary">📥 دانلود فایل JSON</button>
+              <button onClick={() => void handleSaveSnapshot()} className="btn btn-success">💾 ذخیره نسخه در سرور</button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Restore Section */}
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <h2 className="text-lg font-bold text-[#1e3a5f] mb-4">⚙️ پشتیبان\u200cگیری خودکار</h2>
+        <div className="flex flex-wrap items-center gap-4">
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={autoEnabled} onChange={(e) => setAutoEnabled(e.target.checked)} />
+            فعال\u200cسازی پشتیبان خودکار
+          </label>
+          <div className="flex items-center gap-2 text-sm">
+            <span>هر</span>
+            <input type="number" min="1" className="form-input w-24" value={intervalHours} onChange={(e) => setIntervalHours(e.target.value)} />
+            <span>ساعت</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <span>نگهداری</span>
+            <input type="number" min="1" className="form-input w-24" value={retention} onChange={(e) => setRetention(e.target.value)} />
+            <span>نسخه اخیر</span>
+          </div>
+          <button onClick={() => void saveSettings()} className="btn btn-sm btn-primary">ذخیره تنظیمات</button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <h2 className="text-lg font-bold text-[#1e3a5f] mb-4">🗂️ نسخه\u200cهای ذخیره\u200cشده</h2>
+        {backups.length === 0 ? (
+          <p className="text-sm text-gray-400">نسخهای در سرور ذخیره نشده است</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="data-table text-xs">
+              <thead>
+                <tr>
+                  <th>نام فایل</th>
+                  <th>منبع</th>
+                  <th>حجم</th>
+                  <th>تاریخ</th>
+                  <th>عملیات</th>
+                </tr>
+              </thead>
+              <tbody>
+                {backups.map((backup) => (
+                  <tr key={backup.id}>
+                    <td className="font-mono">{backup.filename}</td>
+                    <td>{backup.source === "auto" ? "خودکار" : "دستی"}</td>
+                    <td>{Math.ceil(backup.size / 1024)} KB</td>
+                    <td>{formatDateTime(backup.createdAt)}</td>
+                    <td>
+                      <div className="flex gap-1">
+                        <a href={`/api/backups/${backup.id}`} className="btn btn-sm btn-secondary">⬇️</a>
+                        <button onClick={() => void handleSavedBackup(backup.id, true)} className="btn btn-sm btn-warning">بررسی</button>
+                        <button onClick={() => void handleSavedBackup(backup.id, false)} className="btn btn-sm btn-danger">بازیابی</button>
+                        <button
+                          onClick={async () => {
+                            const res = await fetch(`/api/backups?id=${backup.id}`, { method: "DELETE" });
+                            if (res.ok) void loadBackups();
+                          }}
+                          className="btn btn-sm btn-secondary"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       <div className="bg-white rounded-xl shadow-sm p-6">
         <div className="flex items-start gap-4">
           <div className="text-4xl">🔄</div>
           <div className="flex-1">
-            <h2 className="text-xl font-bold text-[#1e3a5f] mb-2">بازیابی از نسخه پشتیبان</h2>
+            <h2 className="text-xl font-bold text-[#1e3a5f] mb-2">بازیابی از فایل</h2>
             <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm text-red-700">
-              ⚠️ <strong>هشدار مهم:</strong> بازیابی از نسخه پشتیبان تمام داده‌های فعلی را حذف و با داده‌های پشتیبان جایگزین می‌کند. این عملیات غیرقابل بازگشت است.
+              ⚠️ بازیابی تمام داده\u200cهای فعلی را جایگزین می\u200cکند. ابتدا گزینه بررسی (dry-run) را امتحان کنید.
             </div>
             <label className="cursor-pointer">
-              <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-blue-400 hover:bg-blue-50 transition-colors">
+              <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-blue-400 hover:bg-blue-50 transition-colors">
                 <div className="text-3xl mb-2">📂</div>
-                <div className="font-semibold text-gray-700">فایل پشتیبان را اینجا بارگذاری کنید</div>
-                <div className="text-sm text-gray-400 mt-1">فرمت: JSON</div>
+                <div className="font-semibold text-gray-700">فایل پشتیبان JSON را انتخاب کنید</div>
               </div>
               <input
                 ref={fileRef}
                 type="file"
                 accept=".json"
-                onChange={handleRestore}
                 className="hidden"
                 disabled={restoring}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void handleRestoreFile(file, false);
+                }}
               />
             </label>
-            {restoring && (
-              <div className="mt-4 flex items-center gap-2 text-blue-600">
-                <span className="animate-spin">⏳</span>
-                در حال بازیابی اطلاعات...
-              </div>
-            )}
-            {restoreResult && (
-              <div className={`mt-4 rounded-lg p-4 text-sm ${restoreResult.success ? "bg-green-50 border border-green-200 text-green-800" : "bg-red-50 border border-red-200 text-red-800"}`}>
-                {restoreResult.success ? "✅" : "❌"} {restoreResult.message}
-                {restoreResult.success && (
-                  <div className="mt-2">
-                    <button onClick={() => window.location.reload()} className="btn btn-sm btn-success">
-                      🔄 بارگذاری مجدد صفحه
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </div>
       </div>
 
-      {/* Info Section */}
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
-        <h3 className="font-bold text-blue-800 mb-3">💡 راهنمای پشتیبان‌گیری</h3>
+        <h3 className="font-bold text-blue-800 mb-3">💡 راهنما</h3>
         <ul className="space-y-2 text-sm text-blue-700">
-          <li>🔹 توصیه می‌شود هر هفته یک بار از اطلاعات پشتیبان بگیرید</li>
-          <li>🔹 فایل‌های پشتیبان را در چند محل مختلف (ابر، فلش‌درایو) نگهداری کنید</li>
-          <li>🔹 قبل از هر تغییر بزرگ در سیستم، پشتیبان تهیه کنید</li>
-          <li>🔹 فایل پشتیبان شامل تمام اطلاعات سیستم است (به جز رمزهای عبور)</li>
-          <li>🔹 برای بازیابی روی سرور جدید، ابتدا سیستم را راه‌اندازی کرده سپس بازیابی کنید</li>
+          <li>🔹 نسخه\u200cهای خودکار هر ساعت بررسی می\u200cشوند و در صورت نیاز ایجاد می\u200cگردند.</li>
+          <li>🔹 تعداد نسخه\u200cهای نگهداری\u200cشده توسط تنظیم retention محدود می\u200cشود.</li>
+          <li>🔹 قبل از بازیابی، دکمه «بررسی» ساختار فایل را بدون تغییر داده\u200cها اعتبارسنجی می\u200cکند.</li>
+          <li>🔹 فایل\u200cهای پیوست وام در پوشه \u200cuploads سرور نگهداری می\u200cشوند و در پشتیبان JSON فقط اطلاعات متای آنها ذخیره می\u200cشود.</li>
         </ul>
       </div>
     </div>

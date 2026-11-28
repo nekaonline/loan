@@ -13,6 +13,8 @@ import SmsPanel from "@/components/SmsPanel";
 import Users from "@/components/Users";
 import Settings from "@/components/Settings";
 import Backup from "@/components/Backup";
+import Guarantors from "@/components/Guarantors";
+import MemberInquiry from "@/components/MemberInquiry";
 
 interface User {
   id: number;
@@ -35,13 +37,12 @@ export default function Home() {
 
   async function checkAuth() {
     try {
+      // Idempotent: also applies schema upgrades and new default settings.
+      await fetch("/api/init", { method: "POST" });
       const res = await fetch("/api/auth/me");
       if (res.ok) {
         const data = await res.json();
         setUser(data.user);
-      } else {
-        // Initialize system if needed
-        await fetch("/api/init", { method: "POST" });
       }
     } finally {
       setLoading(false);
@@ -162,6 +163,11 @@ export default function Home() {
           <p className="text-center text-blue-400 text-xs mt-6">
             نسخه ۱.۰ | سامانه مدیریت صندوق قرض‌الحسنه
           </p>
+          <div className="text-center mt-3 no-print">
+            <a href="/inquiry" className="text-blue-200 hover:text-white text-xs underline">
+              استعلام وضعیت اعضا و رسیدها
+            </a>
+          </div>
         </div>
       </div>
     );
@@ -179,6 +185,8 @@ export default function Home() {
     users: <Users />,
     settings: <Settings />,
     backup: <Backup />,
+    guarantors: <Guarantors />,
+    inquiry: <MemberInquiry embedded />,
   };
 
   return (

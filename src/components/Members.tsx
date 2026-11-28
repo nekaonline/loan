@@ -21,6 +21,7 @@ interface Member {
   isActive: boolean;
   birthDate?: string;
   joinDate: string;
+  guarantorId?: number | null;
   guarantorName?: string;
   guarantorPhone?: string;
   notes?: string;
@@ -41,6 +42,7 @@ interface MemberFormData {
   jobTitle: string;
   department: string;
   employeeId: string;
+  guarantorId: string;
   guarantorName: string;
   guarantorPhone: string;
   guarantorNationalId: string;
@@ -54,13 +56,14 @@ function emptyForm(): MemberFormData {
     firstName: "", lastName: "", nationalId: "", phone: "",
     phone2: "", email: "", address: "", city: "", postalCode: "",
     birthDate: "", jobTitle: "", department: "", employeeId: "",
-    guarantorName: "", guarantorPhone: "", guarantorNationalId: "",
+    guarantorId: "", guarantorName: "", guarantorPhone: "", guarantorNationalId: "",
     joinDate: getIranTodayISO(), notes: "", isActive: true,
   };
 }
 
 export default function Members() {
   const [members, setMembers] = useState<Member[]>([]);
+  const [guarantors, setGuarantors] = useState<Array<{ id: number; firstName: string; lastName: string; nationalId: string; phone: string }>>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -74,6 +77,7 @@ export default function Members() {
 
   useEffect(() => {
     fetchMembers();
+    fetchGuarantors();
   }, [page, search]);
 
   async function fetchMembers() {
@@ -92,6 +96,18 @@ export default function Members() {
     }
   }
 
+  async function fetchGuarantors() {
+    try {
+      const res = await fetch("/api/guarantors");
+      if (res.ok) {
+        const data = await res.json();
+        setGuarantors(data.guarantors);
+      }
+    } catch {
+      // Guarantor list is optional for the form.
+    }
+  }
+
   function openAdd() {
     setEditMember(null);
     setForm(emptyForm());
@@ -106,7 +122,8 @@ export default function Members() {
       phone: m.phone, phone2: m.phone2 || "", email: m.email || "",
       address: m.address || "", city: m.city || "", postalCode: "",
       jobTitle: m.jobTitle || "", department: m.department || "",
-      employeeId: m.employeeId || "", guarantorName: m.guarantorName || "",
+      employeeId: m.employeeId || "", guarantorId: m.guarantorId ? String(m.guarantorId) : "",
+      guarantorName: m.guarantorName || "",
       guarantorPhone: m.guarantorPhone || "", guarantorNationalId: "",
       birthDate: m.birthDate || "", joinDate: m.joinDate,
       notes: m.notes || "", isActive: m.isActive,
@@ -341,6 +358,28 @@ export default function Members() {
               <div className="border-t pt-4">
                 <h3 className="font-semibold text-gray-700 mb-3">اطلاعات ضامن</h3>
                 <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">انتخاب ضامن ثبت‌شده</label>
+                    <select
+                      className="form-input"
+                      value={form.guarantorId}
+                      onChange={(e) => {
+                        const selected = guarantors.find((g) => String(g.id) === e.target.value);
+                        setForm({
+                          ...form,
+                          guarantorId: e.target.value,
+                          guarantorName: selected ? `${selected.firstName} ${selected.lastName}` : form.guarantorName,
+                          guarantorPhone: selected?.phone || form.guarantorPhone,
+                          guarantorNationalId: selected?.nationalId || form.guarantorNationalId,
+                        });
+                      }}
+                    >
+                      <option value="">دستی وارد کنید</option>
+                      {guarantors.map((g) => (
+                        <option key={g.id} value={g.id}>{g.firstName} {g.lastName} - {g.nationalId}</option>
+                      ))}
+                    </select>
+                  </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">نام ضامن</label>
                     <input className="form-input" value={form.guarantorName} onChange={e => setForm({...form, guarantorName: e.target.value})} />

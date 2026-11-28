@@ -34,7 +34,7 @@ export default function SmsPanel() {
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
   const [sendingReminders, setSendingReminders] = useState(false);
-  const [reminderResult, setReminderResult] = useState<{ sent: number; failed: number } | null>(null);
+  const [reminderResult, setReminderResult] = useState<{ sent: number; failed: number; skipped?: number } | null>(null);
 
   useEffect(() => { fetchLogs(); }, []);
 
@@ -181,7 +181,7 @@ export default function SmsPanel() {
           </button>
           {reminderResult && (
             <div className="mt-3 bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800">
-              ✅ ارسال موفق: <strong>{reminderResult.sent}</strong> | ❌ ناموفق: <strong>{reminderResult.failed}</strong>
+              ✅ ارسال موفق: <strong>{reminderResult.sent}</strong> | ❌ ناموفق: <strong>{reminderResult.failed}</strong> | ⏭️ تکراری: <strong>{reminderResult.skipped || 0}</strong>
             </div>
           )}
           <div className="mt-4 text-xs text-gray-400 space-y-1">

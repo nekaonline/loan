@@ -6,7 +6,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "DATABASE_URL=postgresql://postgres:123@127.0.0.1:5432/loan_db tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -19,6 +20,7 @@
     "jose": "^6.2.7",
     "next": "16.2.6",
     "pg": "8.20.0",
+    "qrcode": "1.5.4",
     "react": "19.2.6",
     "react-dom": "19.2.6",
     "recharts": "^3.10.1",
@@ -28,6 +30,7 @@
     "@tailwindcss/postcss": "4.1.17",
     "@types/node": "22.19.15",
     "@types/pg": "8.18.0",
+    "@types/qrcode": "1.5.5",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "drizzle-kit": "0.31.10",
