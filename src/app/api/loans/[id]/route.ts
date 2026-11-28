@@ -1,7 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { loans, members, installments, fundTransactions } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { unlink } from "node:fs/promises";
+import {
+  loans,
+  members,
+  installments,
+  fundTransactions,
+  attachments,
+  guarantorships,
+  smsLogs,
+  smsReminderLogs,
+} from "@/db/schema";
+import { eq, desc, inArray } from "drizzle-orm";
+import { safeUploadPath } from "@/lib/uploads";
+import { ensureSchema } from "@/lib/schema-setup";
 import { getSession } from "@/lib/auth";
 import {
   calculateInstallments,
@@ -287,8 +299,39 @@ export async function DELETE(
       );
     }
 
-    await db.delete(installments).where(eq(installments.loanId, loanId));
-    await db.delete(loans).where(eq(loans.id, loanId));
+    await ensureSchema();
+    // Remove dependent rows first (FK constraints), all in one transaction.
+    const removedFiles = await db.transaction(async (tx) => {
+      const loanInstallmentIds = (
+        await tx
+          .select({ id: installments.id })
+          .from(installments)
+          .where(eq(installments.loanId, loanId))
+      ).map((row) => row.id);
+
+      if (loanInstallmentIds.length) {
+        await tx
+          .delete(smsReminderLogs)
+          .where(inArray(smsReminderLogs.installmentId, loanInstallmentIds));
+        await tx
+          .update(smsLogs)
+          .set({ installmentId: null })
+          .where(inArray(smsLogs.installmentId, loanInstallmentIds));
+      }
+
+      const files = await tx
+        .delete(attachments)
+        .where(eq(attachments.loanId, loanId))
+        .returning({ storedName: attachments.storedName });
+      await tx.delete(guarantorships).where(eq(guarantorships.loanId, loanId));
+      await tx.delete(installments).where(eq(installments.loanId, loanId));
+      await tx.delete(loans).where(eq(loans.id, loanId));
+      return files;
+    });
+
+    for (const file of removedFiles) {
+      await unlink(safeUploadPath(file.storedName)).catch(() => undefined);
+    }
 
     return NextResponse.json({ message: "وام حذف شد" });
   } catch (error) {

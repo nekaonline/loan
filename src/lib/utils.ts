@@ -141,7 +141,10 @@ export function parseJalaliInput(value: string): string | null {
 export function normalizeDateInput(value: unknown): string | null {
   if (typeof value !== "string" || !value.trim()) return null;
   const trimmed = value.trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  // Gregorian ISO keys (what we store). Years below 1700 are Jalali dates
+  // typed with dashes (e.g. 1403-05-01), so they go through the Jalali parser.
+  const iso = /^(\d{4})-\d{2}-\d{2}$/.exec(toLatinDigits(trimmed));
+  if (iso && Number(iso[1]) >= 1700) return toLatinDigits(trimmed);
   return parseJalaliInput(trimmed);
 }
 

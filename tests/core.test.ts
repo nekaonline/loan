@@ -20,6 +20,15 @@ test("Iran date helpers stay in Solar Hijri", () => {
   assert.equal(formatDate("2026-11-23T22:30:00Z"), "۱۴۰۵/۰۹/۰۳");
 });
 
+test("normalizeDateInput accepts ISO keys and Jalali dates in any form", () => {
+  assert.equal(normalizeDateInput("2024-08-31"), "2024-08-31");
+  assert.equal(normalizeDateInput("1403/06/10"), "2024-08-31");
+  assert.equal(normalizeDateInput("1403-06-10"), "2024-08-31");
+  assert.equal(normalizeDateInput("۱۴۰۳-۰۶-۱۰"), "2024-08-31");
+  assert.equal(normalizeDateInput("1403/13/01"), null);
+  assert.equal(normalizeDateInput(""), null);
+});
+
 test("role based loan cap never exceeds the fund cap", () => {
   const policy = {
     maxLoanAmount: 100_000_000,

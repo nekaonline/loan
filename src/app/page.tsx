@@ -30,21 +30,36 @@ export default function Home() {
   const [loginForm, setLoginForm] = useState({ username: "", password: "" });
   const [loginError, setLoginError] = useState("");
   const [loggingIn, setLoggingIn] = useState(false);
+  const [initError, setInitError] = useState("");
 
   useEffect(() => {
     checkAuth();
   }, []);
 
   async function checkAuth() {
+    // Never leave the user stuck on the loading screen: give up after 20s.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 20_000);
     try {
       // Idempotent: also applies schema upgrades and new default settings.
-      await fetch("/api/init", { method: "POST" });
-      const res = await fetch("/api/auth/me");
+      const initRes = await fetch("/api/init", { method: "POST", signal: controller.signal });
+      if (!initRes.ok) {
+        const initData = await initRes.json().catch(() => ({}));
+        setInitError(
+          initData.error && initData.error !== "خطای راه‌اندازی"
+            ? initData.error
+            : "راه‌اندازی سیستم با خطا مواجه شد. اتصال سرور به پایگاه داده (PostgreSQL) را بررسی کنید."
+        );
+      }
+      const res = await fetch("/api/auth/me", { signal: controller.signal });
       if (res.ok) {
         const data = await res.json();
         setUser(data.user);
       }
+    } catch {
+      setInitError("ارتباط با سرور برقرار نشد. اتصال شبکه، روشن بودن سرور و فایروال را بررسی کنید.");
     } finally {
+      clearTimeout(timer);
       setLoading(false);
     }
   }
@@ -59,12 +74,14 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(loginForm),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setLoginError(data.error || "خطا در ورود");
         return;
       }
       setUser(data.user);
+    } catch {
+      setLoginError("ارتباط با سرور برقرار نشد");
     } finally {
       setLoggingIn(false);
     }
@@ -107,6 +124,12 @@ export default function Home() {
             <h2 className="text-xl font-bold text-[#1e3a5f] mb-6 text-center">
               🔐 ورود به سیستم
             </h2>
+
+            {initError && (
+              <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-4 mb-4 text-sm text-center">
+                {initError}
+              </div>
+            )}
 
             {loginError && (
               <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 mb-4 text-sm text-center">

@@ -3,10 +3,23 @@ import { db } from "@/db";
 import { users, settings } from "@/db/schema";
 import { hashPassword } from "@/lib/auth";
 import { ensureSchema } from "@/lib/schema-setup";
-import { count } from "drizzle-orm";
+import { count, sql } from "drizzle-orm";
 
 export async function POST() {
   try {
+    // Base tables are created by `npm run db:push` (drizzle-kit). Give a clear
+    // message instead of a generic failure when that step was skipped.
+    const check = await db.execute(sql`select to_regclass('public.users') as users_table`);
+    if (!check.rows[0]?.users_table) {
+      return NextResponse.json(
+        {
+          error:
+            "جداول پایگاه داده ساخته نشده‌اند. روی سرور در پوشه پروژه دستور npm run db:push را اجرا کنید و صفحه را دوباره باز کنید.",
+        },
+        { status: 500 }
+      );
+    }
+
     // Safe for every load: creates tables added in later versions.
     await ensureSchema();
 
@@ -56,6 +69,17 @@ export async function POST() {
     return NextResponse.json({ success: true, message: "سیستم راه‌اندازی شد" });
   } catch (error) {
     console.error("Init error:", error);
-    return NextResponse.json({ error: "خطای راه‌اندازی" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "";
+    const dbDown = /ECONNREFUSED|ETIMEDOUT|timeout|password authentication|does not exist/i.test(
+      message + String((error as { cause?: unknown })?.cause ?? "")
+    );
+    return NextResponse.json(
+      {
+        error: dbDown
+          ? "اتصال به پایگاه داده برقرار نشد. روشن بودن PostgreSQL و مقدار DATABASE_URL را بررسی کنید."
+          : "خطای راه‌اندازی",
+      },
+      { status: 500 }
+    );
   }
 }
