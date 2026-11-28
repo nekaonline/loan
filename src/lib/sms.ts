@@ -1,7 +1,14 @@
 import { db } from "@/db";
-import { settings, smsLogs, members, installments } from "@/db/schema";
+import {
+  settings,
+  smsLogs,
+  members,
+  installments,
+  smsReminderLogs,
+} from "@/db/schema";
 import { eq, and, lte, or } from "drizzle-orm";
 import { addDaysISO, formatDate, getIranTodayISO } from "@/lib/utils";
+import { ensureSchema } from "@/lib/schema-setup";
 
 interface SmsSettings {
   apiUrl: string;
@@ -154,10 +161,12 @@ export async function sendSms(
   }
 }
 
-export async function sendInstallmentReminders(): Promise<{
+export async function sendInstallmentReminders(options: { force?: boolean } = {}): Promise<{
   sent: number;
   failed: number;
+  skipped: number;
 }> {
+  await ensureSchema();
   // Get SMS template from settings
   const templateRow = await db
     .select()
@@ -192,11 +201,23 @@ export async function sendInstallmentReminders(): Promise<{
       )
     );
 
+  const todayISO = getIranTodayISO();
+  const alreadySent = await db
+    .select({ installmentId: smsReminderLogs.installmentId })
+    .from(smsReminderLogs)
+    .where(eq(smsReminderLogs.reminderDate, todayISO));
+  const sentIds = new Set(alreadySent.map((row) => row.installmentId));
+
   let sent = 0;
   let failed = 0;
+  let skipped = 0;
 
   for (const { installment, member } of pendingInstallments) {
     if (!member) continue;
+    if (!options.force && sentIds.has(installment.id)) {
+      skipped++;
+      continue;
+    }
     const phone = member.phone;
     const message = template
       .replace("{name}", `${member.firstName} ${member.lastName}`)
@@ -207,7 +228,14 @@ export async function sendInstallmentReminders(): Promise<{
     const result = await sendSms(phone, message, member.id, installment.id);
     if (result.success) sent++;
     else failed++;
+
+    await db.insert(smsReminderLogs).values({
+      installmentId: installment.id,
+      reminderDate: todayISO,
+      status: result.success ? "sent" : "failed",
+    });
+    sentIds.add(installment.id);
   }
 
-  return { sent, failed };
+  return { sent, failed, skipped };
 }

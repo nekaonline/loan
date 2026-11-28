@@ -55,6 +55,23 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// Guarantors (kept separate so a guarantor can support several loans/members)
+export const guarantors = pgTable("guarantors", {
+  id: serial("id").primaryKey(),
+  firstName: varchar("first_name", { length: 100 }).notNull(),
+  lastName: varchar("last_name", { length: 100 }).notNull(),
+  nationalId: varchar("national_id", { length: 20 }).notNull().unique(),
+  phone: varchar("phone", { length: 20 }).notNull(),
+  phone2: varchar("phone2", { length: 20 }),
+  address: text("address"),
+  jobTitle: varchar("job_title", { length: 150 }),
+  relation: varchar("relation", { length: 100 }),
+  notes: text("notes"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdBy: integer("created_by").references(() => users.id),
+});
+
 // Members (Qarz-al-Hasaneh fund members)
 export const members = pgTable("members", {
   id: serial("id").primaryKey(),
@@ -75,6 +92,7 @@ export const members = pgTable("members", {
   guarantorName: varchar("guarantor_name", { length: 200 }),
   guarantorPhone: varchar("guarantor_phone", { length: 20 }),
   guarantorNationalId: varchar("guarantor_national_id", { length: 20 }),
+  guarantorId: integer("guarantor_id").references(() => guarantors.id),
   isActive: boolean("is_active").notNull().default(true),
   notes: text("notes"),
   joinDate: date("join_date").notNull(),
@@ -204,6 +222,74 @@ export const auditLogs = pgTable("audit_logs", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Loan documents uploaded with an application
+export const attachments = pgTable("attachments", {
+  id: serial("id").primaryKey(),
+  loanId: integer("loan_id")
+    .notNull()
+    .references(() => loans.id),
+  memberId: integer("member_id").references(() => members.id),
+  storedName: varchar("stored_name", { length: 255 }).notNull(),
+  fileName: varchar("file_name", { length: 255 }).notNull(),
+  mimeType: varchar("mime_type", { length: 150 }),
+  fileSize: integer("file_size").notNull().default(0),
+  category: varchar("category", { length: 50 }).notNull().default("other"),
+  description: text("description"),
+  uploadedBy: integer("uploaded_by").references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// One guarantee can back several loans; this table keeps the history.
+export const guarantorships = pgTable("guarantorships", {
+  id: serial("id").primaryKey(),
+  guarantorId: integer("guarantor_id")
+    .notNull()
+    .references(() => guarantors.id),
+  loanId: integer("loan_id")
+    .notNull()
+    .references(() => loans.id),
+  memberId: integer("member_id")
+    .notNull()
+    .references(() => members.id),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdBy: integer("created_by").references(() => users.id),
+});
+
+// Versioned, stored backups (in addition to downloadable JSON files)
+export const backups = pgTable("backups", {
+  id: serial("id").primaryKey(),
+  filename: varchar("filename", { length: 200 }).notNull(),
+  version: varchar("version", { length: 20 }).notNull().default("1.0"),
+  content: text("content").notNull(),
+  size: integer("size").notNull().default(0),
+  checksum: varchar("checksum", { length: 64 }),
+  source: varchar("source", { length: 20 }).notNull().default("manual"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdBy: integer("created_by").references(() => users.id),
+});
+
+// Saved report filter templates
+export const reportTemplates = pgTable("report_templates", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 150 }).notNull(),
+  reportType: varchar("report_type", { length: 50 }).notNull(),
+  filters: text("filters").notNull().default("{}"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  createdBy: integer("created_by").references(() => users.id),
+});
+
+// Prevents duplicate automatic reminders on the same day
+export const smsReminderLogs = pgTable("sms_reminder_logs", {
+  id: serial("id").primaryKey(),
+  installmentId: integer("installment_id")
+    .notNull()
+    .references(() => installments.id),
+  reminderDate: date("reminder_date").notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("sent"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Relations
 export const membersRelations = relations(members, ({ many, one }) => ({
   loans: many(loans),
@@ -214,6 +300,11 @@ export const membersRelations = relations(members, ({ many, one }) => ({
     fields: [members.createdBy],
     references: [users.id],
   }),
+  guarantor: one(guarantors, {
+    fields: [members.guarantorId],
+    references: [guarantors.id],
+  }),
+  guarantorships: many(guarantorships),
 }));
 
 export const loansRelations = relations(loans, ({ one, many }) => ({
@@ -230,6 +321,8 @@ export const loansRelations = relations(loans, ({ one, many }) => ({
     fields: [loans.createdBy],
     references: [users.id],
   }),
+  guarantorships: many(guarantorships),
+  attachments: many(attachments),
 }));
 
 export const installmentsRelations = relations(installments, ({ one }) => ({
@@ -278,6 +371,37 @@ export const usersRelations = relations(users, ({ many }) => ({
   auditLogs: many(auditLogs),
 }));
 
+export const guarantorsRelations = relations(guarantors, ({ many }) => ({
+  guarantorships: many(guarantorships),
+  members: many(members),
+}));
+
+export const guarantorshipsRelations = relations(guarantorships, ({ one }) => ({
+  guarantor: one(guarantors, {
+    fields: [guarantorships.guarantorId],
+    references: [guarantors.id],
+  }),
+  loan: one(loans, {
+    fields: [guarantorships.loanId],
+    references: [loans.id],
+  }),
+  member: one(members, {
+    fields: [guarantorships.memberId],
+    references: [members.id],
+  }),
+}));
+
+export const attachmentsRelations = relations(attachments, ({ one }) => ({
+  loan: one(loans, {
+    fields: [attachments.loanId],
+    references: [loans.id],
+  }),
+  member: one(members, {
+    fields: [attachments.memberId],
+    references: [members.id],
+  }),
+}));
+
 // Types
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -292,3 +416,9 @@ export type NewFundTransaction = typeof fundTransactions.$inferInsert;
 export type Setting = typeof settings.$inferSelect;
 export type SmsLog = typeof smsLogs.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
+export type Guarantor = typeof guarantors.$inferSelect;
+export type NewGuarantor = typeof guarantors.$inferInsert;
+export type Attachment = typeof attachments.$inferSelect;
+export type Guarantorship = typeof guarantorships.$inferSelect;
+export type Backup = typeof backups.$inferSelect;
+export type ReportTemplate = typeof reportTemplates.$inferSelect;

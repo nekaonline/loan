@@ -79,6 +79,7 @@ export async function PUT(
         guarantorName: body.guarantorName || null,
         guarantorPhone: body.guarantorPhone || null,
         guarantorNationalId: body.guarantorNationalId || null,
+        guarantorId: body.guarantorId ? parseInt(body.guarantorId) : null,
         isActive: body.isActive !== undefined ? body.isActive : true,
         notes: body.notes || null,
         updatedAt: new Date(),

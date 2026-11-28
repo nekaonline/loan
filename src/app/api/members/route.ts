@@ -130,6 +130,7 @@ export async function POST(req: NextRequest) {
         guarantorName: body.guarantorName || null,
         guarantorPhone: body.guarantorPhone || null,
         guarantorNationalId: body.guarantorNationalId || null,
+        guarantorId: body.guarantorId ? parseInt(body.guarantorId) : null,
         isActive: true,
         notes: body.notes || null,
         joinDate: normalizeDateInput(body.joinDate) || getIranTodayISO(),

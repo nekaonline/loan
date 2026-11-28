@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
 
     if (body.action === "send_reminders") {
-      const result = await sendInstallmentReminders();
+      const result = await sendInstallmentReminders({ force: body.force === true });
       return NextResponse.json(result);
     }
 

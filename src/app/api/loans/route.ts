@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { loans, members, installments, fundTransactions } from "@/db/schema";
-import { eq, desc, like, or, count } from "drizzle-orm";
+import { and, eq, desc, like, or, count, inArray } from "drizzle-orm";
 import { getSession } from "@/lib/auth";
 import {
   generateLoanCode,
   calculateInstallments,
   getIranTodayISO,
   normalizeDateInput,
+  formatNumber,
 } from "@/lib/utils";
+import { getLoanPolicy, maxAmountForRole } from "@/lib/policy";
 
 export async function GET(req: NextRequest) {
   try {
@@ -92,6 +94,45 @@ export async function POST(req: NextRequest) {
     const principal = parseFloat(body.amount);
     const interestRate = parseFloat(body.interestRate || "0");
     const installmentCount = parseInt(body.installmentCount);
+
+    if (!Number.isFinite(principal) || principal <= 0 || installmentCount < 1) {
+      return NextResponse.json(
+        { error: "مبلغ وام و تعداد اقساط باید معتبر باشند" },
+        { status: 400 }
+      );
+    }
+
+    const policy = await getLoanPolicy();
+    const cap = maxAmountForRole(policy, session.role);
+    if (principal > cap) {
+      return NextResponse.json(
+        {
+          error: `مبلغ درخواستی بیش از سقف مجاز (${formatNumber(cap)} ریال) است`,
+        },
+        { status: 400 }
+      );
+    }
+
+    if (session.role !== "admin") {
+      const [activeCount] = await db
+        .select({ value: count() })
+        .from(loans)
+        .where(
+          and(
+            eq(loans.memberId, parseInt(body.memberId)),
+            inArray(loans.status, ["pending", "approved", "active"])
+          )
+        );
+
+      if (activeCount.value >= policy.maxActiveLoansPerMember) {
+        return NextResponse.json(
+          {
+            error: `این عضو دارای ${activeCount.value} وام در جریان است (سقف مجاز: ${policy.maxActiveLoansPerMember})`,
+          },
+          { status: 400 }
+        );
+      }
+    }
 
     const { installmentAmount, totalPayable } = calculateInstallments(
       principal,

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import {
   loans,
@@ -13,6 +13,7 @@ import {
   getIranMonthStartISO,
   getIranTodayISO,
   getJalaliISODate,
+  normalizeDateInput,
 } from "@/lib/utils";
 
 const PERSIAN_MONTHS = [
@@ -39,7 +40,7 @@ function monthLabel(jalaliMonthKey: string): string {
   return `${PERSIAN_MONTHS[Number(month) - 1] || ""} ${year}`.trim();
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const session = await getSession();
     if (!session) {
@@ -48,6 +49,9 @@ export async function GET() {
 
     const today = getIranTodayISO();
     const monthStart = getIranMonthStartISO();
+    const params = new URL(req.url).searchParams;
+    const from = normalizeDateInput(params.get("from"));
+    const to = normalizeDateInput(params.get("to"));
 
     // ---------- KPI statistics ----------
     const [totalMembers] = await db
@@ -241,7 +245,7 @@ export async function GET() {
       .orderBy(desc(loans.requestDate), desc(loans.id))
       .limit(2000);
 
-    const recipients = recipientRows.map((row) => ({
+    const allRecipients = recipientRows.map((row) => ({
       id: row.id,
       loanCode: row.loanCode,
       status: row.status,
@@ -264,6 +268,10 @@ export async function GET() {
       memberPhone: row.memberPhone,
     }));
 
+    const recipients = allRecipients.filter(
+      (row) => (!from || row.requestDate >= from) && (!to || row.requestDate <= to)
+    );
+
     // ---------- Fund transactions ----------
     const transactionRows = await db
       .select({
@@ -281,7 +289,7 @@ export async function GET() {
       .orderBy(desc(fundTransactions.transactionDate), desc(fundTransactions.id))
       .limit(2000);
 
-    const transactions = transactionRows.map((row) => ({
+    const allTransactions = transactionRows.map((row) => ({
       id: row.id,
       type: row.type,
       amount: toNumber(row.amount),
@@ -292,16 +300,24 @@ export async function GET() {
       memberLastName: row.memberLastName,
     }));
 
+    const transactions = allTransactions.filter(
+      (row) =>
+        (!from || row.transactionDate >= from) &&
+        (!to || row.transactionDate <= to)
+    );
+
     // ---------- Collection trend (last 6 Jalali months) ----------
     const trendStart = addJalaliMonthsISO(monthStart, -5);
+    const effectiveFrom = from && from > trendStart ? from : trendStart;
+    const effectiveTo = to && to < today ? to : today;
     const paidRows = await db
       .select({ paidDate: installments.paidDate, amount: installments.paidAmount })
       .from(installments)
       .where(
         and(
           eq(installments.status, "paid"),
-          gte(installments.paidDate, trendStart),
-          lte(installments.paidDate, today)
+          gte(installments.paidDate, effectiveFrom),
+          lte(installments.paidDate, effectiveTo)
         )
       );
 
@@ -321,6 +337,7 @@ export async function GET() {
 
     return NextResponse.json({
       generatedAt: new Date().toISOString(),
+      filters: { from, to },
       stats: {
         totalMembers: totalMembers.value,
         activeLoans: activeLoans.value,

@@ -11,6 +11,8 @@ interface SettingsData {
   default_interest_rate: string;
   default_installment_count: string;
   max_loan_amount: string;
+  max_loan_amount_manager: string;
+  max_active_loans_per_member: string;
   sms_provider: string;
   sms_api_url: string;
   sms_api_key: string;
@@ -131,7 +133,7 @@ export default function Settings() {
       {activeTab === "loan" && (
         <div className="bg-white rounded-xl shadow-sm p-6 space-y-4">
           <h2 className="text-lg font-bold text-[#1e3a5f]">تنظیمات پیش‌فرض وام</h2>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">نرخ سود پیش‌فرض (%)</label>
               <input type="number" step="0.1" className="form-input" value={settings.default_interest_rate || ""} onChange={e => update("default_interest_rate", e.target.value)} />
@@ -141,8 +143,16 @@ export default function Settings() {
               <input type="number" className="form-input" value={settings.default_installment_count || ""} onChange={e => update("default_installment_count", e.target.value)} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">حداکثر مبلغ وام (ریال)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">سقف وام - مدیر (ریال)</label>
               <input type="number" className="form-input" value={settings.max_loan_amount || ""} onChange={e => update("max_loan_amount", e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">سقف وام - کارشناس (ریال)</label>
+              <input type="number" className="form-input" value={settings.max_loan_amount_manager || ""} onChange={e => update("max_loan_amount_manager", e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">حداکثر وام در جریان هر عضو</label>
+              <input type="number" min="1" className="form-input" value={settings.max_active_loans_per_member || ""} onChange={e => update("max_active_loans_per_member", e.target.value)} />
             </div>
           </div>
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
