@@ -4,6 +4,13 @@ import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { verifyPassword, createToken } from "@/lib/auth";
 
+function isHttpsRequest(req: NextRequest): boolean {
+  if (process.env.COOKIE_SECURE === "true") return true;
+  if (process.env.COOKIE_SECURE === "false") return false;
+  const forwarded = req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  return (forwarded || req.nextUrl.protocol.replace(":", "")) === "https";
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { username, password } = await req.json();
@@ -60,7 +67,11 @@ export async function POST(req: NextRequest) {
 
     response.cookies.set("auth_token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      // Only mark the cookie Secure when the request really is HTTPS.
+      // Browsers silently drop Secure cookies on plain http://192.168.x.x,
+      // which made LAN logins fail in production mode.
+      secure: isHttpsRequest(req),
+      path: "/",
       sameSite: "lax",
       maxAge: 60 * 60 * 8, // 8 hours
     });

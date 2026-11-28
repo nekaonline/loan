@@ -131,7 +131,7 @@ export default function Backup() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-[#1e3a5f]">💾 پشتیبان\u200cگیری و بازیابی</h1>
+        <h1 className="text-2xl font-bold text-[#1e3a5f]">💾 پشتیبان‌گیری و بازیابی</h1>
       </div>
 
       {result && (
@@ -151,7 +151,7 @@ export default function Backup() {
           <div className="flex-1">
             <h2 className="text-xl font-bold text-[#1e3a5f] mb-2">تهیه نسخه پشتیبان</h2>
             <p className="text-gray-600 mb-4 text-sm">
-              می‌توانید پشتیبان را دانلود کنید یا به صورت نسخه\u200cبندی\u200cشده در سرور ذخیره نمایید.
+              می‌توانید پشتیبان را دانلود کنید یا به صورت نسخه‌بندی‌شده در سرور ذخیره نمایید.
             </p>
             <div className="flex flex-wrap gap-2">
               <button onClick={() => void handleDownload()} className="btn btn-primary">📥 دانلود فایل JSON</button>
@@ -162,11 +162,11 @@ export default function Backup() {
       </div>
 
       <div className="bg-white rounded-xl shadow-sm p-6">
-        <h2 className="text-lg font-bold text-[#1e3a5f] mb-4">⚙️ پشتیبان\u200cگیری خودکار</h2>
+        <h2 className="text-lg font-bold text-[#1e3a5f] mb-4">⚙️ پشتیبان‌گیری خودکار</h2>
         <div className="flex flex-wrap items-center gap-4">
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={autoEnabled} onChange={(e) => setAutoEnabled(e.target.checked)} />
-            فعال\u200cسازی پشتیبان خودکار
+            فعال‌سازی پشتیبان خودکار
           </label>
           <div className="flex items-center gap-2 text-sm">
             <span>هر</span>
@@ -183,7 +183,7 @@ export default function Backup() {
       </div>
 
       <div className="bg-white rounded-xl shadow-sm p-6">
-        <h2 className="text-lg font-bold text-[#1e3a5f] mb-4">🗂️ نسخه\u200cهای ذخیره\u200cشده</h2>
+        <h2 className="text-lg font-bold text-[#1e3a5f] mb-4">🗂️ نسخه‌های ذخیره‌شده</h2>
         {backups.length === 0 ? (
           <p className="text-sm text-gray-400">نسخهای در سرور ذخیره نشده است</p>
         ) : (
@@ -235,7 +235,7 @@ export default function Backup() {
           <div className="flex-1">
             <h2 className="text-xl font-bold text-[#1e3a5f] mb-2">بازیابی از فایل</h2>
             <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm text-red-700">
-              ⚠️ بازیابی تمام داده\u200cهای فعلی را جایگزین می\u200cکند. ابتدا گزینه بررسی (dry-run) را امتحان کنید.
+              ⚠️ بازیابی تمام داده‌های فعلی را جایگزین می‌کند. ابتدا گزینه بررسی (dry-run) را امتحان کنید.
             </div>
             <label className="cursor-pointer">
               <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-blue-400 hover:bg-blue-50 transition-colors">
@@ -261,10 +261,10 @@ export default function Backup() {
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
         <h3 className="font-bold text-blue-800 mb-3">💡 راهنما</h3>
         <ul className="space-y-2 text-sm text-blue-700">
-          <li>🔹 نسخه\u200cهای خودکار هر ساعت بررسی می\u200cشوند و در صورت نیاز ایجاد می\u200cگردند.</li>
-          <li>🔹 تعداد نسخه\u200cهای نگهداری\u200cشده توسط تنظیم retention محدود می\u200cشود.</li>
-          <li>🔹 قبل از بازیابی، دکمه «بررسی» ساختار فایل را بدون تغییر داده\u200cها اعتبارسنجی می\u200cکند.</li>
-          <li>🔹 فایل\u200cهای پیوست وام در پوشه \u200cuploads سرور نگهداری می\u200cشوند و در پشتیبان JSON فقط اطلاعات متای آنها ذخیره می\u200cشود.</li>
+          <li>🔹 نسخه‌های خودکار هر ساعت بررسی می‌شوند و در صورت نیاز ایجاد می‌گردند.</li>
+          <li>🔹 تعداد نسخه‌های نگهداری‌شده توسط تنظیم retention محدود می‌شود.</li>
+          <li>🔹 قبل از بازیابی، دکمه «بررسی» ساختار فایل را بدون تغییر داده‌ها اعتبارسنجی می‌کند.</li>
+          <li>🔹 فایل‌های پیوست وام در پوشه uploads سرور نگهداری می‌شوند و در پشتیبان JSON فقط اطلاعات متای آنها ذخیره می‌شود.</li>
         </ul>
       </div>
     </div>
